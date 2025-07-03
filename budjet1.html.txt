@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>💸 Budget Tracker with Chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js link -->
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      padding: 40px;
+    }
+    .container {
+      max-width: 700px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #070707;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 5px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #28a745;
+      color: white;
+      margin-top: 15px;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #218838;
+    }
+    .output {
+      margin-top: 30px;
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 10px;
+      font-size: 16px;
+      color: #444;
+    }
+    .section-title {
+      margin-top: 30px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+     canvas {
+  width: 300px;
+  height: 300px;
+  margin: 20px auto;
+  display: block;
+}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💸 Budget Tracker</h1>
+    
+    <label>Type:</label>
+    <select id="type">
+      <option value="income">Income</option>
+      <option value="expenses">Expense</option>
+    </select>
+
+    <label>Category:</label>
+    <select id="category">
+      <option value="salary">Salary</option>
+      <option value="freelance">Freelance</option>
+      <option value="gifts">Gifts</option>
+      <option value="food">Food</option>
+      <option value="transport">Transport</option>
+      <option value="entertainment">Entertainment</option>
+      <option value="utilities">Utilities</option>
+      <option value="shopping">Shopping</option>
+    </select>
+
+    <label>Amount:</label>
+    <input type="number" id="amount" placeholder="Enter amount" />
+
+    <label>Description:</label>
+    <input type="text" id="description" placeholder="Enter description" />
+
+    <button onclick="addTransaction()">➕ Add Transaction</button>
+
+    <div class="output" id="transactionHistory"></div>
+    <div class="output" id="categoryReport"></div>
+    <div class="output" id="monthlyReport"></div>
+
+    <!-- 🎯 Chart Canvas -->
+    <canvas id="expenseChart"></canvas>
+  </div>
+
+  <script>
+    let chartRef = null;
+
+    const budgetTracker = {
+      balance: 1000,
+      transactions: [],
+      categories: {
+        income: ["salary", "freelance", "gifts"],
+        expenses: ["food", "transport", "entertainment", "utilities", "shopping"]
+      },
+
+      addTransaction(type, amount, category, description = "") {
+        if (!this.categories[type].includes(category)) {
+          alert(`Invalid category for ${type}`);
+          return;
+        }
+
+        const transaction = {
+          id: this.transactions.length + 1,
+          type,
+          amount: parseFloat(amount),
+          category,
+          description,
+          date: new Date().toLocaleDateString()
+        };
+
+        this.transactions.push(transaction);
+
+        if (type === "income") {
+          this.balance += transaction.amount;
+        } else {
+          this.balance -= transaction.amount;
+        }
+
+        displayAll();
+      },
+
+      getTransactionHistory(limit = 10) {
+        return this.transactions.slice(-limit).reverse();
+      },
+
+      getCategoryReport() {
+        const categoryTotals = {};
+        this.transactions.forEach(t => {
+          if (t.type === "expenses") {
+            if (!categoryTotals[t.category]) {
+              categoryTotals[t.category] = 0;
+            }
+            categoryTotals[t.category] += t.amount;
+          }
+        });
+        return categoryTotals;
+      },
+
+      getMonthlyReport() {
+        const totalIncome = this.transactions
+          .filter(t => t.type === "income")
+          .reduce((sum, t) => sum + t.amount, 0);
+        const totalExpenses = this.transactions
+          .filter(t => t.type === "expenses")
+          .reduce((sum, t) => sum + t.amount, 0);
+        const netIncome = totalIncome - totalExpenses;
+        return {
+          totalIncome,
+          totalExpenses,
+          netIncome,
+          balance: this.balance
+        };
+      }
+    };
+
+    function addTransaction() {
+      const type = document.getElementById("type").value;
+      const category = document.getElementById("category").value;
+      const amount = document.getElementById("amount").value;
+      const description = document.getElementById("description").value;
+
+      if (amount === "" || isNaN(amount) || parseFloat(amount) <= 0) {
+        alert("Please enter a valid amount");
+        return;
+      }
+
+      budgetTracker.addTransaction(type, amount, category, description);
+      document.getElementById("amount").value = "";
+      document.getElementById("description").value = "";
+    }
+
+    function displayAll() {
+      const history = budgetTracker.getTransactionHistory();
+      const categoryData = budgetTracker.getCategoryReport();
+      const report = budgetTracker.getMonthlyReport();
+
+      document.getElementById("transactionHistory").innerHTML =
+        `<div class="section-title">🧾 Recent Transactions</div>` +
+        history.map(t => {
+          const sign = t.type === "income" ? "+" : "-";
+          const emoji = t.type === "income" ? "💰" : "💸";
+          return `${emoji} ${t.date}: ${sign}$${t.amount} (${t.category}) - ${t.description}`;
+        }).join("<br>");
+
+      document.getElementById("categoryReport").innerHTML =
+        `<div class="section-title">📊 Spending by Category</div>` +
+        Object.entries(categoryData)
+          .map(([cat, amt]) => `${cat}: $${amt.toFixed(2)}`)
+          .join("<br>");
+
+      document.getElementById("monthlyReport").innerHTML = `
+        <div class="section-title">📅 Monthly Report</div>
+        Total Income: $${report.totalIncome.toFixed(2)}<br>
+        Total Expenses: $${report.totalExpenses.toFixed(2)}<br>
+        Net Income: $${report.netIncome.toFixed(2)}<br>
+        Current Balance: $${report.balance.toFixed(2)}<br>
+        ${report.netIncome >= 0 ? "✅ You're saving money!" : "⚠ You're spending more than you earn!"}
+      `;
+
+      updatePieChart(categoryData);
+    }
+
+    function updatePieChart(data) {
+      const ctx = document.getElementById("expenseChart").getContext("2d");
+
+      const labels = Object.keys(data);
+      const values = Object.values(data);
+
+      if (chartRef) {
+        chartRef.destroy(); // Remove old chart before drawing a new one
+      }
+
+      chartRef = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Expenses by Category',
+            data: values,
+            backgroundColor: [
+              '#ff6384', '#36a2eb', '#ffcd56', '#4bc0c0', '#9966ff', '#f67019'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    }
+
+    displayAll(); // Load on start
+  </script>
+</body>
+</html>
